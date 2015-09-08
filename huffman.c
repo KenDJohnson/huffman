@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <sys/types.h>
 
 typedef struct
 {
@@ -23,11 +23,12 @@ typedef struct
 void insert_pq(pri_q_node *root, pri_q_node *new)
 {
 	int new_val = new->weight;
-	pri_q_node *current = root, *new_fw;
-	if(!root) return;
-	
-	while(new_val < current->weight && current->forward != NULL) current = current->forward;
-	if(new->forward != NULL)
+    pri_q_node *current = root, *new_fw;
+    printf("adding %c : %d\n", new->node_val, new->weight);
+	if(root->weight == 0) return;
+	printf("added\n");
+	while(new_val < current->weight && current->forward != NULL) current = (pri_q_node *) current->forward;
+	if(current->forward != NULL)
 	{
 		new->forward = current->forward;
 		new_fw = (pri_q_node *)new->forward;
@@ -39,54 +40,64 @@ void insert_pq(pri_q_node *root, pri_q_node *new)
 
 void print_tree(btree_node *root)
 {
-	
+    printf("printing\n");
+    if(root->left != NULL) print_tree((btree_node *) root->left);
+    if(root->right != NULL) print_tree((btree_node *) root->right);
+    printf("%c : %d\n", root->node_val, root->weight);
 }
 
-int partition(int *a, int *b, int l, int r);
-void quicksort(int *a, int *b, int l, int r)
-{
-	int j;
-	if(l < r)
-	{
-		j = partition(a, b, l, r);
-		quicksort(a, b, l, j-1);
-		quicksort(a, b, j+1, r);
-	}
-}
 
-int partition(int *a, int *b, int l, int r)
+btree_node* encode(pri_q_node *root)
 {
-	int pivot, i, j, t, t2;
-	pivot = a[l];
-	i = l; j = r + 1;
-	while(1)
-	{
-		do ++i; while(a[i] <= pivot && i <= r);
-		do --j; while(a[j] > pivot);
-		if( i >= j ) break;
-		t = a[i]; a[i] = a[j]; a[j] = t;
-		t2 = b[i]; b[i] = b[j]; b[j] = t2;
-	}
-	t = a[l]; a[l] = a[j]; a[j] = t;
-	t2 = b[l]; b[l] = b[j]; b[j] = t2;
-	return j;
-}
+    pri_q_node *current = (pri_q_node *) root, *first, *second, *parent;
+    btree_node *bt_first, *bt_second, *bt_parent;
+    while(current->forward != NULL && (first = current->forward)->forward != NULL)
+    {
+        first = current; 
+        second = (pri_q_node *) current->forward;
+        parent = (pri_q_node *) malloc(sizeof(pri_q_node));
+        bt_first = (btree_node *) malloc(sizeof(btree_node));
+        bt_second = (btree_node *) malloc(sizeof(btree_node));
+        bt_parent = (btree_node *) malloc(sizeof(btree_node));
 
-int encode(char *alphabet, int * weights, int *codewords)
-{
-	
+        bt_first->node_val = first->node_val;
+        bt_first->weight = first->weight;
+        bt_first->parent = bt_parent;
+        bt_first->left = NULL;
+        bt_first->right = NULL;
+
+        bt_second->node_val = second->node_val;
+        bt_second->weight = second->weight;
+        bt_second->parent = bt_parent;
+        bt_second->left = NULL;
+        bt_second->right = NULL;
+
+        bt_parent->left = bt_first;
+        bt_parent->right = bt_second;
+        bt_parent->weight = bt_first->weight + bt_second->weight;
+
+        parent->weight = bt_parent->weight;
+        parent->node_val = NULL;
+        parent->forward = NULL;
+        parent->back = NULL;
+        insert_pq(root, parent);
+
+        current = (pri_q_node *) second->forward;
+    }
+    return parent;
 }
 int main(int argc, char **argv)
 {
-	int chars[128], *weights, i, nxt_char = 0, alphabet_size = 0, k = 0, *alphabet;
+	int chars[128], *weights, i, nxt_char = 0, alphabet_size = 0, k = 0, *alphabet, first_char;
 	FILE *fp;
+    btree_node *btree_root;
+    pri_q_node *root, *new_node, *current;
 	fp = fopen("text", "r");
 	if(fp < 0 ) return -1;
-	for(i = 0; i < 128; i++)
-	{
-		chars[i] = 0;
-	}
-	
+    for(i = 0; i < 128; i++)
+    {
+        chars[i] = 0;
+    }
 	while((nxt_char = fgetc(fp)) != EOF)
 	{
 		if(nxt_char < 0 || nxt_char > 127) continue;
@@ -110,11 +121,43 @@ int main(int argc, char **argv)
 			weights[k++] = chars[i];
 		}
 	}
-	quicksort(weights, alphabet, 0, alphabet_size);
-	for(i = 0; i <= alphabet_size; i++) printf("%c: %d\n", alphabet[i], weights[i]);
+    root = (pri_q_node *) malloc(sizeof(*root));
+    first_char = alphabet[0] ? 0 : 1;
+    root->node_val = alphabet[first_char];
+    root->weight = weights[first_char];
+    root->back = NULL;
+    root->forward = NULL;
+    
+	for(i = first_char+1; i <= alphabet_size; i++)
+    {
+        new_node = (pri_q_node *) malloc(sizeof(*new_node));
+        new_node->node_val = alphabet[i];
+        new_node->weight = weights[i];
+        new_node->back = NULL;
+        new_node->forward = NULL;
+        insert_pq(root, new_node);
+    }
+    current = root;
+    while(current->forward != NULL)
+    {
+        printf("%c: %d\n", current->node_val, current->weight);
+        current = (pri_q_node *) current->forward;
+    }
+    
+    printf("here\n");
+    btree_root = encode(root);
+    printf("here2\n");
+    print_tree(btree_root);
 
-	
-
+    free(alphabet);
+    free(weights);
+    current = root;
+    while(current->forward != NULL)
+    {
+        new_node = current->forward;
+        free(current);
+        current = new_node;
+    }
 }
 
 
