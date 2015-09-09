@@ -22,20 +22,19 @@ typedef struct
 
 void insert_pq(pri_q_node *root, pri_q_node *new)
 {
-	int new_val = new->weight;
     pri_q_node *current = root, *new_fw;
     printf("adding %c : %d\n", new->node_val, new->weight);
-	if(root->weight == 0) return;
+	if(new->weight == 0) return;
 	printf("added\n");
-	while(new_val < current->weight && current->forward != NULL) current = (pri_q_node *) current->forward;
+	while(new->weight < current->weight && current->forward != NULL) current = (pri_q_node *) current->forward;
 	if(current->forward != NULL)
 	{
 		new->forward = current->forward;
 		new_fw = (pri_q_node *)new->forward;
-		new_fw->back = new;
+		new_fw->back = (struct pri_q_node *) new;
 	}
-	current->forward = new;
-	new->back = current;
+	current->forward = (struct pri_q_node *) new;
+	new->back = (struct pri_q_node *) current;
 }
 
 void print_tree(btree_node *root)
@@ -51,7 +50,7 @@ btree_node* encode(pri_q_node *root)
 {
     pri_q_node *current = (pri_q_node *) root, *first, *second, *parent;
     btree_node *bt_first, *bt_second, *bt_parent;
-    while(current->forward != NULL && (first = current->forward)->forward != NULL)
+    while(current->forward != NULL && (first = (pri_q_node *) current->forward)->forward != NULL)
     {
         first = current; 
         second = (pri_q_node *) current->forward;
@@ -62,29 +61,29 @@ btree_node* encode(pri_q_node *root)
 
         bt_first->node_val = first->node_val;
         bt_first->weight = first->weight;
-        bt_first->parent = bt_parent;
+        bt_first->parent = (struct btree_node *) bt_parent;
         bt_first->left = NULL;
         bt_first->right = NULL;
 
         bt_second->node_val = second->node_val;
         bt_second->weight = second->weight;
-        bt_second->parent = bt_parent;
+        bt_second->parent = (struct btree_node *) bt_parent;
         bt_second->left = NULL;
         bt_second->right = NULL;
 
-        bt_parent->left = bt_first;
-        bt_parent->right = bt_second;
+        bt_parent->left = (struct btree_node *) bt_first;
+        bt_parent->right = (struct btree_node *) bt_second;
         bt_parent->weight = bt_first->weight + bt_second->weight;
 
         parent->weight = bt_parent->weight;
-        parent->node_val = NULL;
+        parent->node_val = 0;
         parent->forward = NULL;
         parent->back = NULL;
         insert_pq(root, parent);
 
         current = (pri_q_node *) second->forward;
     }
-    return parent;
+    return bt_parent;
 }
 int main(int argc, char **argv)
 {
@@ -154,7 +153,7 @@ int main(int argc, char **argv)
     current = root;
     while(current->forward != NULL)
     {
-        new_node = current->forward;
+        new_node = (pri_q_node *)current->forward;
         free(current);
         current = new_node;
     }
