@@ -86,7 +86,7 @@ void structure( pri_q_node *root, int level  )
   else {
     structure ((pri_q_node *) root->right, level + 1  );
     padding ( "\t\t", level  );
-    printf ( "%d:%c\n", root->weight, root->node_val  );
+    printf ( "%d:%d\n", root->weight, root->node_val  );
     structure ( (pri_q_node *) root->left, level + 1  );
   
   }
@@ -126,11 +126,12 @@ void compress(char *fin, char *fout)
 	FILE *fp;
     pri_q_node *root, *new_node, *current;
 	fp = fopen(fin, "r");
-	if(fp < 0 ) { printf("Unable to open file: %s\n", fin); exit(-1);}
+	if(fp == 0 ) { printf("Unable to open file: %s\n", fin); exit(-1);}
     for(i = 0; i < 128; i++)
     {
         chars[i] = 0;
     }
+    printf("here\n");
 	while((nxt_char = fgetc(fp)) != EOF)
 	{
 		if(nxt_char < 0 || nxt_char > 127) continue;
@@ -189,7 +190,8 @@ void compress(char *fin, char *fout)
 int main(int argc, char **argv)
 {
 	if(argc < 4) { printf("usage: %s [-c|-x] filein fileout\n", argv[0]); return -1; }
-	compress(argv[1], argv[2]);
+    if(!strcmp(argv[1], "-c"))
+    	compress(argv[2], argv[3]);
 }
 
 
