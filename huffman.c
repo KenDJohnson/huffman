@@ -91,7 +91,8 @@ int main(int argc, char **argv)
 	FILE *fp;
     btree_node *btree_root;
     pri_q_node *root, *new_node, *current;
-	fp = fopen("text", "r");
+	if(argc < 2) { printf("usage: %s filename\n", argv[0]); return -1; }
+	fp = fopen(argv[1], "r");
 	if(fp < 0 ) return -1;
     for(i = 0; i < 128; i++)
     {
