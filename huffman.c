@@ -7,93 +7,126 @@ typedef struct
 {
 	char node_val;
 	int weight;
-	struct btree_node *parent;
-	struct btree_node *left;
-	struct btree_node *right;
-} btree_node;
-
-typedef struct
-{
-	char node_val;
-	int weight;
 	struct pri_q_node *forward;
 	struct pri_q_node *back;	
+	/* So they can also be btree nodes */
+	struct pri_q_node *left;
+	struct pri_q_node *right;
 } pri_q_node;
 
-void insert_pq(pri_q_node *root, pri_q_node *new)
+pri_q_node* insert_pq(pri_q_node *root, pri_q_node *new)
 {
-    pri_q_node *current = root, *new_fw;
-    printf("adding %c : %d\n", new->node_val, new->weight);
-	if(new->weight == 0) return;
-	printf("added\n");
-	while(new->weight < current->weight && current->forward != NULL) current = (pri_q_node *) current->forward;
-	if(current->forward != NULL)
+    pri_q_node *current = root, *back;
+	int added = 0;
+	if(new->weight == 0) return root;
+	while(new->weight > current->weight) 
 	{
-		new->forward = current->forward;
-		new_fw = (pri_q_node *)new->forward;
-		new_fw->back = (struct pri_q_node *) new;
+		if(current->forward == NULL)
+		{
+			current->forward = (struct pri_q_node *) new;
+			new->back = (struct pri_q_node *) current;
+			added++;
+			break;
+		}
+		else
+		{
+			current = (pri_q_node *) current->forward;
+		}
 	}
-	current->forward = (struct pri_q_node *) new;
-	new->back = (struct pri_q_node *) current;
+	if(!added)
+	{
+		if(current->back != NULL)
+		{
+			back = (pri_q_node *) current->back;
+			new->back = (struct pri_q_node *) back;
+			back->forward = (struct pri_q_node *) new;
+		}
+		else if(current == root)
+		{
+			root = new;
+		}
+			new->forward = (struct pri_q_node *) current;
+			current->back = (struct pri_q_node *) new;
+	}
+	return root;
 }
-
-void print_tree(btree_node *root)
+pri_q_node* deque_pq(pri_q_node *root)
 {
-    printf("printing\n");
-    if(root->left != NULL) print_tree((btree_node *) root->left);
-    if(root->right != NULL) print_tree((btree_node *) root->right);
-    printf("%c : %d\n", root->node_val, root->weight);
+	pri_q_node *new_root = (pri_q_node *) root->forward;
+	new_root->back = NULL;
+	root = new_root;
+	return new_root;
 }
 
+void free_tree(pri_q_node *root)
+{
+	if(root->left != NULL) free_tree((pri_q_node *) root->left);
+	if(root->right != NULL) free_tree((pri_q_node *) root->right);
+	free(root);
+}
 
-btree_node* encode(pri_q_node *root)
+void padding ( char *ch, int n )
+{
+  int i;
+
+  for ( i = 0; i < n; i++  )
+	printf("%s", ch);
+
+}
+
+void structure( pri_q_node *root, int level  )
+{
+  int i;
+
+  if ( root == NULL  ) {
+    padding ( "\t\t", level  );
+    puts ( "~"  );
+  
+  }
+  else {
+    structure ((pri_q_node *) root->right, level + 1  );
+    padding ( "\t\t", level  );
+    printf ( "%d:%c\n", root->weight, root->node_val  );
+    structure ( (pri_q_node *) root->left, level + 1  );
+  
+  }
+
+}
+
+pri_q_node* encode(pri_q_node *root)
 {
     pri_q_node *current = (pri_q_node *) root, *first, *second, *parent;
-    btree_node *bt_first, *bt_second, *bt_parent;
     while(current->forward != NULL && (first = (pri_q_node *) current->forward)->forward != NULL)
     {
         first = current; 
-        second = (pri_q_node *) current->forward;
+		current = deque_pq(current);
+        second = current;
+		current = deque_pq(current);
         parent = (pri_q_node *) malloc(sizeof(pri_q_node));
-        bt_first = (btree_node *) malloc(sizeof(btree_node));
-        bt_second = (btree_node *) malloc(sizeof(btree_node));
-        bt_parent = (btree_node *) malloc(sizeof(btree_node));
-
-        bt_first->node_val = first->node_val;
-        bt_first->weight = first->weight;
-        bt_first->parent = (struct btree_node *) bt_parent;
-        bt_first->left = NULL;
-        bt_first->right = NULL;
-
-        bt_second->node_val = second->node_val;
-        bt_second->weight = second->weight;
-        bt_second->parent = (struct btree_node *) bt_parent;
-        bt_second->left = NULL;
-        bt_second->right = NULL;
-
-        bt_parent->left = (struct btree_node *) bt_first;
-        bt_parent->right = (struct btree_node *) bt_second;
-        bt_parent->weight = bt_first->weight + bt_second->weight;
-
-        parent->weight = bt_parent->weight;
-        parent->node_val = 0;
-        parent->forward = NULL;
-        parent->back = NULL;
-        insert_pq(root, parent);
-
-        current = (pri_q_node *) second->forward;
+		parent->left = (struct pri_q_node *) first;
+		parent->right = (struct pri_q_node *) second;
+		parent->weight = first->weight + second->weight;
+        current = insert_pq(current, parent);
     }
-    return bt_parent;
+        first = current; 
+		current = deque_pq(current);
+        second = current;
+        parent = (pri_q_node *) malloc(sizeof(pri_q_node));
+		parent->left = (struct pri_q_node *) first;
+		parent->right = (struct pri_q_node *) second;
+		parent->weight = first->weight + second->weight;
+        current = insert_pq(current, parent);
+    return parent;
 }
-int main(int argc, char **argv)
+
+
+void compress(char *fin, char *fout)
 {
-	int chars[128], *weights, i, nxt_char = 0, alphabet_size = 0, k = 0, *alphabet, first_char;
+	int chars[128], *weights, i, nxt_char = 0, alphabet_size = 0, k = 0, *alphabet, first_char, nodecount;
 	FILE *fp;
-    btree_node *btree_root;
     pri_q_node *root, *new_node, *current;
-	if(argc < 2) { printf("usage: %s filename\n", argv[0]); return -1; }
-	fp = fopen(argv[1], "r");
-	if(fp < 0 ) return -1;
+	fp = fopen(fin, "r");
+	if(fp < 0 ) { printf("Unable to open file: %s\n", fin); exit(-1);}
     for(i = 0; i < 128; i++)
     {
         chars[i] = 0;
@@ -105,9 +138,10 @@ int main(int argc, char **argv)
 	}
 	for(i = 0; i < 128; i++)
 	{
-/*		i > 31 || i < 127 ? printf("%c ", i) : printf("%d ", i);
-		printf("%d\n", chars[i]);*/
-		if(chars[i] > 0) alphabet_size++;
+		if(chars[i] > 0) 
+		{
+			alphabet_size++;
+		}
 	}
 	alphabet = (int *) malloc(sizeof(int) * alphabet_size);
 	weights = (int *) malloc(sizeof(int) * alphabet_size);
@@ -135,29 +169,27 @@ int main(int argc, char **argv)
         new_node->weight = weights[i];
         new_node->back = NULL;
         new_node->forward = NULL;
-        insert_pq(root, new_node);
+        root = insert_pq(root, new_node);
     }
     current = root;
+	nodecount = 1;
     while(current->forward != NULL)
     {
         printf("%c: %d\n", current->node_val, current->weight);
         current = (pri_q_node *) current->forward;
+		nodecount++;
     }
-    
-    printf("here\n");
-    btree_root = encode(root);
-    printf("here2\n");
-    print_tree(btree_root);
-
+    printf("%c: %d\n", current->node_val, current->weight);
+    root = encode(root);
+	structure(root, 0);
     free(alphabet);
     free(weights);
-    current = root;
-    while(current->forward != NULL)
-    {
-        new_node = (pri_q_node *)current->forward;
-        free(current);
-        current = new_node;
-    }
+	free_tree(root);
+}
+int main(int argc, char **argv)
+{
+	if(argc < 4) { printf("usage: %s [-c|-x] filein fileout\n", argv[0]); return -1; }
+	compress(argv[1], argv[2]);
 }
 
 
